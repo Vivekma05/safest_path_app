@@ -419,7 +419,7 @@
         map.on('contextmenu', async (e) => {
             const popup = L.popup().setLatLng(e.latlng).setContent('<div class="p-2 text-xs">Analyzing...</div>').openOn(map);
             try {
-                const response = await fetch('https://web-production-a71578.up.railway.app/get-point-risk', {
+                const response = await fetch('http://10.0.2.2:8000/get-point-risk', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -510,7 +510,7 @@
 
             document.getElementById('loading').classList.remove('hidden');
             try {
-                const response = await fetch('https://web-production-a71578.up.railway.app/get-safe-route', {
+                const response = await fetch('http://10.0.2.2:8000/get-safe-route', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
