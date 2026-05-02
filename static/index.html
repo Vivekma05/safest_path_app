@@ -224,8 +224,21 @@
         const hourRange = document.getElementById('hour-range');
         const hourDisplay = document.getElementById('hour-display');
         const areaJump = document.getElementById('area-jump');
+        const daySelect = document.getElementById('day-select');
+
+        // Auto-set current day and hour from the device
+        const now = new Date();
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        daySelect.value = daysOfWeek[now.getDay()];
+        hourRange.value = now.getHours();
+        hourDisplay.innerText = `${hourRange.value.padStart(2, '0')}:00`;
 
         hourRange.oninput = () => { hourDisplay.innerText = `${hourRange.value.padStart(2, '0')}:00`; };
+
+        // Auto-request GPS location on app load
+        setTimeout(() => {
+            document.getElementById('btn-live-location').click();
+        }, 1000);
 
         // Handle Area Jump
         areaJump.onchange = (e) => {
