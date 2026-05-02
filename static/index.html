@@ -593,49 +593,96 @@
             }, 1000);
         }
 
-        function startSafetyTracking() {
+        async function startSafetyTracking() {
             if (isSafetyTrackingActive) return;
-            if (!navigator.geolocation) return;
-            
             isSafetyTrackingActive = true;
             lastMovedTimestamp = Date.now();
             emergencyTriggered = false;
-            
-            safetyWatchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    if (emergencyTriggered) return;
-                    
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const currentLocation = {lat, lng};
-                    
-                    if (!lastSafetyLocation) {
-                        lastSafetyLocation = currentLocation;
-                        lastMovedTimestamp = Date.now();
-                        return;
-                    }
-                    
-                    const distMoved = haversineMetres(lastSafetyLocation.lat, lastSafetyLocation.lng, lat, lng);
-                    const timeSinceLastMove = (Date.now() - lastMovedTimestamp) / 1000;
-                    
-                    if (distMoved > 5) {
-                        lastSafetyLocation = currentLocation;
-                        lastMovedTimestamp = Date.now();
-                    } else if (timeSinceLastMove > 30 && !safetyWarningActive) {
-                        triggerSafetyWarning();
-                    }
-                },
-                (error) => console.error("Tracking Error:", error),
-                { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-            );
+
+            if (window.Capacitor && window.Capacitor.Plugins.BackgroundGeolocation) {
+                try {
+                    safetyWatchId = await Capacitor.Plugins.BackgroundGeolocation.addWatcher(
+                        {
+                            backgroundMessage: "SafeRoute is actively tracking your safety 24/7.",
+                            backgroundTitle: "SafeRoute Safety Tracking",
+                            requestPermissions: true,
+                            stale: false,
+                            distanceFilter: 0 // Get updates constantly so we can detect stoppage
+                        },
+                        function callback(location, error) {
+                            if (error) {
+                                console.error("Background Tracking Error:", error);
+                                return;
+                            }
+                            if (emergencyTriggered) return;
+                            
+                            const lat = location.latitude;
+                            const lng = location.longitude;
+                            const currentLocation = {lat, lng};
+                            
+                            if (!lastSafetyLocation) {
+                                lastSafetyLocation = currentLocation;
+                                lastMovedTimestamp = Date.now();
+                                return;
+                            }
+                            
+                            const distMoved = haversineMetres(lastSafetyLocation.lat, lastSafetyLocation.lng, lat, lng);
+                            const timeSinceLastMove = (Date.now() - lastMovedTimestamp) / 1000;
+                            
+                            if (distMoved > 5) {
+                                lastSafetyLocation = currentLocation;
+                                lastMovedTimestamp = Date.now();
+                            } else if (timeSinceLastMove > 30 && !safetyWarningActive) {
+                                triggerSafetyWarning();
+                            }
+                        }
+                    );
+                } catch(err) {
+                    console.error("Failed to start background tracking", err);
+                }
+            } else if (navigator.geolocation) {
+                // Fallback for Web Browsers
+                safetyWatchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        if (emergencyTriggered) return;
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        const currentLocation = {lat, lng};
+                        
+                        if (!lastSafetyLocation) {
+                            lastSafetyLocation = currentLocation;
+                            lastMovedTimestamp = Date.now();
+                            return;
+                        }
+                        
+                        const distMoved = haversineMetres(lastSafetyLocation.lat, lastSafetyLocation.lng, lat, lng);
+                        const timeSinceLastMove = (Date.now() - lastMovedTimestamp) / 1000;
+                        
+                        if (distMoved > 5) {
+                            lastSafetyLocation = currentLocation;
+                            lastMovedTimestamp = Date.now();
+                        } else if (timeSinceLastMove > 30 && !safetyWarningActive) {
+                            triggerSafetyWarning();
+                        }
+                    },
+                    (error) => console.error("Tracking Error:", error),
+                    { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+                );
+            }
         }
 
         function stopSafetyTracking() {
-            if (safetyWatchId !== null) {
-                navigator.geolocation.clearWatch(safetyWatchId);
-            }
             isSafetyTrackingActive = false;
             resetSafetyWarning();
+            
+            if (safetyWatchId !== null) {
+                if (window.Capacitor && window.Capacitor.Plugins.BackgroundGeolocation) {
+                    Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id: safetyWatchId });
+                } else if (navigator.geolocation) {
+                    navigator.geolocation.clearWatch(safetyWatchId);
+                }
+                safetyWatchId = null;
+            }
         }
     </script>
 </body>
