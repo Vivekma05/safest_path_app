@@ -19,6 +19,9 @@
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+        /* Smooth animation for live navigation tracking */
+        .leaflet-marker-icon { transition: transform 1s linear; }
+
         /* Custom marker styling for safety points */
         #toast {
             position: fixed;
@@ -171,6 +174,10 @@
                         <span class="text-[10px] font-bold text-red-600 uppercase">Avg Risk</span>
                         <span id="stat-risk" class="text-lg font-bold text-red-700">0.0</span>
                     </div>
+                    <div id="remaining-dist-container" class="flex justify-between items-center p-3 bg-emerald-50 rounded-lg hidden">
+                        <span class="text-[10px] font-bold text-emerald-600 uppercase">Remaining</span>
+                        <span id="stat-remaining" class="text-lg font-bold text-emerald-700">-- km</span>
+                    </div>
                 </div>
             </div>
             
@@ -271,6 +278,30 @@
                 if (haversineMetres(lat, lon, pt.lat, pt.lng) <= maxDistM) return true;
             }
             return false;
+        }
+
+        /**
+         * Calculates the remaining distance to the destination along the route.
+         */
+        function calculateRemainingDistance(lat, lng, routeLatLngs) {
+            if (!routeLatLngs || routeLatLngs.length === 0) return 0;
+            let minDist = Infinity;
+            let closestIdx = 0;
+            
+            for (let i = 0; i < routeLatLngs.length; i++) {
+                const dist = haversineMetres(lat, lng, routeLatLngs[i].lat, routeLatLngs[i].lng);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIdx = i;
+                }
+            }
+            
+            let remainingDist = minDist;
+            for (let i = closestIdx; i < routeLatLngs.length - 1; i++) {
+                remainingDist += haversineMetres(routeLatLngs[i].lat, routeLatLngs[i].lng, routeLatLngs[i+1].lat, routeLatLngs[i+1].lng);
+            }
+            
+            return remainingDist / 1000;
         }
 
         // How close (metres) a POI must be to the route corridor to be shown.
@@ -619,6 +650,17 @@
                             const lat = location.latitude;
                             const lng = location.longitude;
                             const currentLocation = {lat, lng};
+
+                            // Update live navigation UI
+                            if (startMarker) {
+                                startMarker.setLatLng([lat, lng]);
+                                startLabel.innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)} (Live)`;
+                            }
+                            if (routeLine) {
+                                const remainingKm = calculateRemainingDistance(lat, lng, routeLine.getLatLngs());
+                                document.getElementById('stat-remaining').innerText = remainingKm.toFixed(2) + ' km';
+                                document.getElementById('remaining-dist-container').classList.remove('hidden');
+                            }
                             
                             if (!lastSafetyLocation) {
                                 lastSafetyLocation = currentLocation;
@@ -648,6 +690,17 @@
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
                         const currentLocation = {lat, lng};
+
+                        // Update live navigation UI
+                        if (startMarker) {
+                            startMarker.setLatLng([lat, lng]);
+                            startLabel.innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)} (Live)`;
+                        }
+                        if (routeLine) {
+                            const remainingKm = calculateRemainingDistance(lat, lng, routeLine.getLatLngs());
+                            document.getElementById('stat-remaining').innerText = remainingKm.toFixed(2) + ' km';
+                            document.getElementById('remaining-dist-container').classList.remove('hidden');
+                        }
                         
                         if (!lastSafetyLocation) {
                             lastSafetyLocation = currentLocation;
