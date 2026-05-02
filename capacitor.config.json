@@ -1,0 +1,9 @@
+{
+  "appId": "com.example.mapapp",
+  "appName": "map_app",
+  "webDir": "static",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  }
+}
